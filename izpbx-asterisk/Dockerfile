@@ -1,8 +1,4 @@
-ARG IMAGE_FROM=rockylinux/rockylinux:8
-
-FROM ${IMAGE_FROM}
-
-MAINTAINER Ugo Viti <ugo.viti@initzero.it>
+FROM rockylinux/rockylinux:8
 
 ### default app args used during build step
 #ARG APP_VER_MAJOR=
@@ -653,6 +649,17 @@ ENV APP_BUILD_DATE="${APP_BUILD_DATE}"
 
 ## add files to container
 ADD rootfs Dockerfile README.md /
+
+LABEL org.label-schema.build-date=${APP_BUILD_DATE} \
+      org.label-schema.name=${APP_NAME} \
+      org.label-schema.description=${APP_DESCRIPTION} \
+      org.label-schema.url="https://github.com/ugoviti/izpbx" \
+      org.label-schema.vcs-url="https://github.com/ugoviti/izpbx" \
+      org.label-schema.maintainer="Ugo Viti <ugo.viti@initzero.it>" \
+      org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.vendor1="Ugoviti" \
+      org.label-schema.vendor2="Sapian" \
+      org.label-schema.version=${APP_VER}
 
 ## start the container process
 ENTRYPOINT ["/entrypoint.sh"]

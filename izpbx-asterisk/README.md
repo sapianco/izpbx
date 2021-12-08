@@ -14,6 +14,45 @@ Asterisk 18 + FreePBX 16:
 Asterisk 18 + FreePBX 15:  
 `docker build --pull --rm --build-arg APP_DEBUG=1 --build-arg APP_VER_BUILD=1 --build-arg APP_BUILD_COMMIT=0000000 --build-arg APP_BUILD_DATE=$(date +%s) --build-arg APP_VER=dev-18.15 --build-arg FREEPBX_VER=15 --build-arg ASTERISK_VER=18.8.0 -t izpbx-asterisk:dev-18.15 .`
 
+### Buildx
+
+#### Asterisk 18 + FreePBX 16:
+
+``` bash
+docker buildx build \
+    --push \
+    --platform linux/arm64/v8,linux/amd64,linux/arm/v7 \
+    --build-arg APP_BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+    --build-arg APP_DEBUG=1 \
+    --build-arg APP_VER_BUILD=1 \
+    --build-arg APP_BUILD_COMMIT=0000000 \
+    --build-arg APP_BUILD_DATE=$(date +%s) \
+    --build-arg APP_VER=dev-18.16 \
+    --build-arg FREEPBX_VER=16 \
+    --build-arg ASTERISK_VER=18.8.0 \
+    --build-arg VCS_REF=$(git rev-parse --short HEAD) \
+    --tag izdock/izpbx-asterisk:latest \
+    --tag izdock/izpbx-asterisk:dev-18.16 .
+```
+
+#### Asterisk 18 + FreePBX 15:
+
+``` bash
+docker buildx build \
+    --push \
+    --platform linux/arm64/v8,linux/amd64,linux/arm/v7 \
+    --build-arg APP_BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+    --build-arg APP_DEBUG=1 \
+    --build-arg APP_VER_BUILD=1 \
+    --build-arg APP_BUILD_COMMIT=0000000 \
+    --build-arg APP_BUILD_DATE=$(date +%s) \
+    --build-arg APP_VER=dev-18.15 \
+    --build-arg FREEPBX_VER=15 \
+    --build-arg ASTERISK_VER=18.8.0 \
+    --build-arg VCS_REF=$(git rev-parse --short HEAD) \
+    --tag izdock/izpbx-asterisk:latest \
+    --tag izdock/izpbx-asterisk:dev-18.15 .
+```
 
 ## Run
 
