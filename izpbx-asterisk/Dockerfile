@@ -637,9 +637,9 @@ EXPOSE \
 #VOLUME [ "/var/spool/cron", "/var/www", "/etc/asterisk", "/var/lib/asterisk/sounds/custom" ]
 
 ## CI args
-ARG APP_VER_BUILD
-ARG APP_BUILD_COMMIT
-ARG APP_BUILD_DATE
+ARG APP_VER_BUILD=0
+ARG APP_BUILD_COMMIT=0
+ARG APP_BUILD_DATE=0
 
 ## CI envs
 ENV APP_FQDN=""
