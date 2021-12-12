@@ -1027,12 +1027,12 @@ cfgService_freepbx_install() {
   mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';"
   
   # freepbx asterisk config db
-  mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE}"
-  mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;"
+  mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "CREATE DATABASE IF NOT EXISTS `${MYSQL_DATABASE}`"
+  mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "GRANT ALL PRIVILEGES ON `${MYSQL_DATABASE}`.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;"
   
   # freepbx asterisk cdr db
-  mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE_CDR}"
-  mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE_CDR}.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;"
+  mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "CREATE DATABASE IF NOT EXISTS `${MYSQL_DATABASE_CDR}`"
+  mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "GRANT ALL PRIVILEGES ON `${MYSQL_DATABASE_CDR}`.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;"
   
   # install freepbx
   ./install -n --skip-install --no-ansi --dbhost=${MYSQL_SERVER} --dbuser=${MYSQL_USER} --dbpass=${MYSQL_PASSWORD} --dbname=${MYSQL_DATABASE} --cdrdbname=${MYSQL_DATABASE_CDR} ${FPBX_OPTS}
