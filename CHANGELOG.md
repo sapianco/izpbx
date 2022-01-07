@@ -4,13 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.16.2] - 2021-12-24
+### Added
+- Added `iproute` package (used by SIP Settings when binding interface to SIP channel driver)
+
+## [18.16.1] - 2021-12-15
+### Changed
+- Updated engine to Asterisk 18.9.0 LTS (https://www.asterisk.org/asterisk-news/asterisk-18-9-0-now-available/)
+- Let's Encrypt: changed used address from `SMTP_MAIL_TO` to `SMTP_MAIL_FROM` when requesting a certificate
+
 ## [18.16.0] - 2021-12-04
 ### Changed
-- upgrade to FreePBX 16
+- MAJOR CHANGE: Updated GUI to FreePBX 16 (see README.md for upgrade instructions)
+- MAJOR CHANGE: chan_pjsip is now the default sip channel driver
+- MAJOR CHANGE: Updated PHP from 7.2 to 7.4 (NOTE: before switching to this release remember to upgrade all FreePBX modules to avoid warnings about unsupported PHP version)
 - disabled Asterisk module: app_voicemail_imap
-- updated PHP from 7.2 to 7.4 (NOTE: before switching to this release remember to upgrade all FreePBX modules to avoid warnings about unsupported PHP version)
 - updated sngrep to 1.4.10
-- changed pjsip do be the default sip channel
 - updated `default.env` with: (NOTE: don't forget to accordingly update your `.env` file)
   - added: `FREEPBX_AUTOUPGRADE_CORE=true`
   - renamed: `FREEPBX_FIRSTRUN_AUTOUPDATE` to `FREEPBX_AUTOUPGRADE_MODULES`
@@ -18,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - changed: `APP_PORT_SIP=5160`
   - disabled: `FREEPBX_SIGNATURECHECK=0`
 ### Added
-- PHP 7.4 IonCube Loader support for commercial modules support
+- PHP 7.4 IonCube Loader support for commercial modules support (still not usable, missing sysadmin rpm package)
 ### Removed
 - removed Asterisk 16 build support
 
@@ -39,8 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.15.23] - 2021-11-11
 ### Changed
-- Updated Asterisk to 18.8.0 LTS
-- Updated mariadb from 10.6.4 to 10.6.5
+- Updated engine to Asterisk 18.8.0 LTS
+- Updated database to MariaDB 10.6.5
   - after the deploy don't forget to upgrade mariadb database with: `source .env ; docker exec -it izpbx-db mysql_upgrade -u root -p$MYSQL_ROOT_PASSWORD`
   
 ## [18.15.22] - 2021-10-21
@@ -147,7 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ATTENTION: Added new variable into `default.env` (remember to update your `.env` copy):
   - `PHONEBOOK_ENABLED="true"`
   - `PHONEBOOK_ADDRESS=`
-- Added php-ldap package
+- Added `php-ldap` package
 ### Fixed
 - Fixed missing LDAP support for UserManager
 - Fixed `SMTP_ALLOWED_SENDER_DOMAINS` default var

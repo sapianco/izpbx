@@ -12,7 +12,6 @@ izPBX is a Turnkey Cloud Native VoIP Telephony System powered by Asterisk Engine
 
 ## Development Branches:
 * Asterisk 18 LTS: `dev-18`, `dev-18.X`, `dev-18.X.X-BUILD`, `dev-18.X.X-COMMIT`
-* Asterisk 16 LTS: `dev-16`, `dev-16.X`, `dev-16.X.X-BUILD`, `dev-16.X.X-COMMIT`
 
 ## Version notes:
 Tags format: **Z.Y.X-[BUILD|COMMIT]**
@@ -530,11 +529,15 @@ NOTE: Tested on Yealink Phones
 - Windows host support (need to use docker volume instead local directory path?)
 
 # BUGS
-- Unpredictable network interface order when running in Multi-Tenant mode. As workaround used, the network interface name must be named in lexical order. refs:
+- Unpredictable network interface order when running in Multi-Tenant mode. As workaround, used network interface name must be named in lexical order. refs:
   - https://gist.github.com/jfellus/cfee9efc1e8e1baf9d15314f16a46eca
   - https://github.com/moby/moby/issues/20179
 - By default FreePBX use Signature Checking for modules packages, but this make very high delays when reloading FreePBX, so by default is been disabled. refs:
   - https://issues.freepbx.org/browse/FREEPBX-20559
+- No commercial FreePBX modules can be installed
+  - sysadmin rpm module is missing, looking for a solution
+- Missing good EndPoint Manager for automatic phone provisioning
+  - Looking fo a valid solution
   
 # Quick reference
 - **Developed and maintained by**:
