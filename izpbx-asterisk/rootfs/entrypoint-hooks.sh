@@ -121,11 +121,12 @@ fi
 
 # mysql configuration
 : ${MYSQL_SERVER:="db"}
-: ${MYSQL_ROOT_PASSWORD:=""}
 : ${MYSQL_DATABASE:="asterisk"}
 : ${MYSQL_DATABASE_CDR:="asteriskcdrdb"}
 : ${MYSQL_USER:="asterisk"}
 : ${MYSQL_PASSWORD:=""}
+: ${MYSQL_ROOT_USER:="root"}
+: ${MYSQL_ROOT_PASSWORD:=""}
 : ${APP_PORT_MYSQL:="3306"}
 
 # fop2 (automaticcally obtained quering freepbx settings)
@@ -133,6 +134,7 @@ fi
 #: ${FOP2_AMI_PORT:="5038"}
 #: ${FOP2_AMI_USERNAME:="admin"}
 #: ${FOP2_AMI_PASSWORD:="amp111"}
+: ${FOP2_AUTOUPGRADE:="false"}
 
 # apache httpd configuration
 : ${HTTPD_HTTPS_ENABLED:="false"}
@@ -622,11 +624,14 @@ if [ "${HTTPD_HTTPS_ENABLED}" = "true" ]; then
   [ -e "${HTTPD_HTTPS_CERT_FILE}" ] && local CERT_CN=$(openssl x509 -noout -subject -in ${HTTPD_HTTPS_CERT_FILE} | sed 's/.*CN = //;s/, .*//')
   
   # define cert subject
-  [ -z "$APP_FQDN" ] && local CERT_SUBJ="/CN=izpbx" || SUBJ="/CN=$APP_FQDN"
+  [ -z "$APP_FQDN" ] && local CERT_SUBJ="/CN=izpbx" || CERT_SUBJ="/CN=$APP_FQDN"
 
   if [[ ! -e "${HTTPD_HTTPS_CERT_FILE}" && ! -e "${HTTPD_HTTPS_KEY_FILE}" ]]; then
     echo "---> WARNING: the SSL certificate files (HTTPD_HTTPS_CERT_FILE=${HTTPD_HTTPS_CERT_FILE} HTTPD_HTTPS_KEY_FILE=${HTTPD_HTTPS_KEY_FILE}) doesn't exist"
     echo "----> generating new self-signed certificate (with 10 years duration) to avoid web server crashing"
+    # make dirs if not exists
+    [ ! -e "$(dirname "${HTTPD_HTTPS_CERT_FILE}")" ] && mkdir "$(dirname "${HTTPD_HTTPS_CERT_FILE}")"
+    [ ! -e "$(dirname "${HTTPD_HTTPS_KEY_FILE}")" ]  && mkdir "$(dirname "${HTTPD_HTTPS_KEY_FILE}")"
     openssl req -subj "$CERT_SUBJ" -new -newkey rsa:2048 -sha256 -days 3650 -nodes -x509 -keyout "${HTTPD_HTTPS_KEY_FILE}" -out "${HTTPD_HTTPS_CERT_FILE}"
   elif [[ ! -z "$APP_FQDN" && "$CERT_CN" = "izpbx" ]]; then
     echo "---> WARNING: current SSL certificate CN '$CERT_CN' (${HTTPD_HTTPS_CERT_FILE}) doesn't match configured APP_FQDN '$APP_FQDN' variable"
@@ -839,7 +844,10 @@ Charset=utf8" > /etc/odbc.ini
   if [ ! -e ${APP_DATA}/.initialized ]; then
       # first run detected initialize izpbx
       cfgService_freepbx_install
+      # save the current installed freepbx version
+      FREEPBX_VER_INSTALLED="$(${fpbxDirs[AMPBIN]}/fwconsole -V | awk '{print $NF}' | awk -F'.' '{print $1}')"
     else
+      # save the current installed freepbx version
       FREEPBX_VER_INSTALLED="$(${fpbxDirs[AMPBIN]}/fwconsole -V | awk '{print $NF}' | awk -F'.' '{print $1}')"
       
       # 'fwconsole -V' is not always reliable, reading current installed version directly from database
@@ -902,6 +910,7 @@ Charset=utf8" > /etc/odbc.ini
 }
 
 cfgService_freepbx_upgrade_check() {
+  #set -x
   if [ -e "${APP_DATA}/.initialized" ]; then
     if [ $FREEPBX_VER_INSTALLED -lt $FREEPBX_VER ];then
       echo
@@ -968,27 +977,44 @@ cfgService_freepbx_upgrade() {
   echo
 }
 
-# procedures to install FreePBX
+# install FreePBX if not installed
 cfgService_freepbx_install() {
-  n=1 ; t=5
 
+  mysqlQuery() {
+    mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u ${MYSQL_ROOT_USER} --password=${MYSQL_ROOT_PASSWORD} -N -B -e "$@"
+  }
+  
+  checkMysql() {
+    mysqlQuery "SELECT 1;" >/dev/null
+  }
+  
+  # counter for global attempts
+  n=1 ; t=5
+  
   until [ $n -eq $t ]; do
-  echo
-  echo "======================================================================"
-  echo "=> !!! FreePBX IS NOT INITIALIZED :: THIS IS A NEW INSTALLATION !!! <="
-  echo "======================================================================"
-  echo
-  echo "--> missing '${APP_DATA}/.initialized' file... initializing FreePBX right now... try:[$n/$t]"
   cd /usr/src/freepbx
+  echo
+  echo "====================================================================="
+  echo "=> !!! NEW INSTALLATION DETECTED :: FreePBX IS NOT INITIALIZED !!! <="
+  echo "====================================================================="
+  echo "--> missing '${APP_DATA}/.initialized' file... initializing FreePBX right now... try:[$n/$t]"
+
+  # use mysql user if MYSQL_ROOT_PASSWORD is not defined and skip initial MySQL deploy
+  if [ -z "${MYSQL_ROOT_PASSWORD}" ]; then
+    echo "--> NOTE: skipping MySQL init because not root user password defined"
+    MYSQL_ROOT_USER="${MYSQL_USER}"
+    MYSQL_ROOT_PASSWORD="${MYSQL_PASSWORD}"
+    SKIP_MYSQL_INIT="true"
+  fi
   
   # start asterisk if it's not running
   if ! asterisk -r -x "core show version" 2>/dev/null ; then ./start_asterisk start ; fi
   
-  # verify and wait if mysql is ready
+  # counter for connecting to MySQL database
   myn=1 ; myt=10
   
   until [ $myn -eq $myt ]; do
-    mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "SELECT 1;" >/dev/null
+    checkMysql
     RETVAL=$?
     if [ $RETVAL = 0 ]; then
         myn=$myt
@@ -998,6 +1024,9 @@ cfgService_freepbx_install() {
         sleep 10
     fi
   done
+  
+  # latest check if MySQL is reachable otherwhise exit and don't try to install FreePBX
+  checkMysql && [ $? != 0 ] && "=> ERROR: UNABLE TO CONNECT TO THE MYSQL DATABASE AFTER $myt ATTEMPTS. Check the db connection, username, password and permissions... exiting" && exit 1
   
   echo "--> installing FreePBX in '${fpbxDirs[AMPWEBROOT]}'"
   echo "---> START install FreePBX @ $(date)"
@@ -1019,9 +1048,20 @@ cfgService_freepbx_install() {
   
   # if mysql run in a non standard port change the mysql server address
   [[ ! -z "${APP_PORT_MYSQL}" && ${APP_PORT_MYSQL} -ne 3306 ]] && export MYSQL_SERVER="${MYSQL_SERVER}:${APP_PORT_MYSQL}"
-  set -x
+  #set -x
   
   ## create mysql users and databases if not exists
+  if [ "$SKIP_MYSQL_INIT" != "true" ]; then
+    echo "---> creating and grantig access to FreePBX databases: ${MYSQL_DATABASE}, ${MYSQL_DATABASE_CDR}"
+    # freepbx mysql user
+    mysqlQuery "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+    # freepbx asterisk config db
+    mysqlQuery "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE}"
+    mysqlQuery "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;"
+    # freepbx asterisk cdr db
+    mysqlQuery "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE_CDR}"
+    mysqlQuery "GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE_CDR}.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;"
+  fi
   
   # freepbx mysql user
   mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';"
@@ -1033,8 +1073,12 @@ cfgService_freepbx_install() {
   # freepbx asterisk cdr db
   mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE_CDR}\`"
   mysql -h ${MYSQL_SERVER} -P ${APP_PORT_MYSQL} -u root --password=${MYSQL_ROOT_PASSWORD} -B -e "GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE_CDR}\`.* TO '${MYSQL_USER}'@'%' WITH GRANT OPTION;"
+  # veirfy if databases exist and we can access
+  mysqlQuery "USE ${MYSQL_DATABASE};"     ; [ $? != 0 ] && echo "---> WARNING: unable to access ${MYSQL_DATABASE} DB. Please check if exist and the permissions... exiting" && exit 1
+  mysqlQuery "USE ${MYSQL_DATABASE_CDR};" ; [ $? != 0 ] && echo "---> WARNING: unable to access ${MYSQL_DATABASE_CDR} DB. Please check if exist and the permissions... exiting" && exit 1
   
   # install freepbx
+  set -x
   ./install -n --skip-install --no-ansi --dbhost=${MYSQL_SERVER} --dbuser=${MYSQL_USER} --dbpass=${MYSQL_PASSWORD} --dbname=${MYSQL_DATABASE} --cdrdbname=${MYSQL_DATABASE_CDR} ${FPBX_OPTS}
   RETVAL=$?
   set +x
@@ -1131,7 +1175,7 @@ cfgService_freepbx_install() {
       su - ${APP_USR} -s /bin/bash -c "fwconsole ma upgradeall"
     fi
     
-    echo "--> reloading FreePBX..."
+    # reload freePBX
     freepbxReload
     
     # make this deploy initialized
@@ -1147,7 +1191,7 @@ cfgService_freepbx_install() {
       n=$t
     else
       let n+=1
-      echo "--> problem detected... restarting in 10 seconds... try:[$n/$t]"
+      echo "--> problem detected when trying to install FreePBX... restarting in 10 seconds... try:[$n/$t]"
       sleep 10
   fi
   done
@@ -1158,6 +1202,7 @@ cfgService_freepbx_install() {
     asterisk -r -x "core stop now"
     echo "=> Finished installing FreePBX"
   fi
+  echo "======================================================================"
 }
 
 ## dnsmasq service
@@ -1267,48 +1312,62 @@ cfgService_fop2 () {
     # FOP2 License Code Management
     # licensed interface
     [ -z "${FOP2_LICENSE_IFACE}" ] && FOP2_LICENSE_IFACE=eth0
-    FOP2_LICENSE_OPTS+=" --iface ${FOP2_LICENSE_IFACE}"
+    FOP2_LICENSE_OPTS+=" --rp=http --iface ${FOP2_LICENSE_IFACE}"
     # modify fop2 command if interface name is specified
     [ ! -z "${FOP2_LICENSE_IFACE}" ] && sed "s|^command.*=.*|command=/usr/local/fop2/fop2_server -i ${FOP2_LICENSE_IFACE}|" -i "${SUPERVISOR_DIR}/fop2.ini"
     
     # fop2 version upgrade check
-    [ -e "${appDataDirs[FOP2APPDIR]}/fop2_server" ] && FOP2_VER_CUR=$("${appDataDirs[FOP2APPDIR]}/fop2_server" -v 2>/dev/null | awk '{print $3}')
-    if   [ $(check_version $FOP2_VER_CUR) -lt $(check_version $FOP2_VER) ]; then
-      echo "=> INFO: FOP2 update detected... upgrading from $FOP2_VER_CUR to $FOP2_VER"
-      cfgService_fop2_upgrade
-    elif [ $(check_version $FOP2_VER_CUR) -gt $(check_version $FOP2_VER) ]; then
-      echo "=> WARNING: Specified FOP2_VER=$FOP2_VER is older than installed version: $FOP2_VER_CUR"
-     else
-      echo "=> INFO: Specified FOP2_VER=$FOP2_VER, installed version: $FOP2_VER_CUR"
+    if [ "$FOP2_AUTOUPGRADE" = "true" ]; then
+      [ -e "${appDataDirs[FOP2APPDIR]}/fop2_server" ] && FOP2_VER_CUR=$("${appDataDirs[FOP2APPDIR]}/fop2_server" -v 2>/dev/null | awk '{print $3}')
+      if   [ $(check_version $FOP2_VER_CUR) -lt $(check_version $FOP2_VER) ]; then
+        echo "=> INFO: FOP2 update detected... upgrading from $FOP2_VER_CUR to $FOP2_VER"
+        cfgService_fop2_upgrade
+      elif [ $(check_version $FOP2_VER_CUR) -gt $(check_version $FOP2_VER) ]; then
+        echo "=> WARNING: Specified FOP2_VER=$FOP2_VER is older than installed version: $FOP2_VER_CUR"
+      else
+        echo "=> INFO: Specified FOP2_VER=$FOP2_VER, installed version: $FOP2_VER_CUR"
+      fi
     fi
     
     if [ ! -e "${appDataDirs[FOP2APPDIR]}/fop2.lic" ]; then
-      if [ -z "${FOP2_LICENSE_CODE}" ]; then
-          echo "--> INFO: FOP2 is not licensed and no 'FOP2_LICENSE_CODE' variable defined... running in trial mode"
-      elif [ -z "${FOP2_LICENSE_NAME}" ] ; then
-          echo "--> INFO: FOP2 is not licensed and no 'FOP2_LICENSE_NAME' variable defined... running in trial mode"
-        else
-          echo "--> INFO: Registering FOP2"
-          echo "---> NAME: ${FOP2_LICENSE_NAME}"
-          echo "---> CODE: ${FOP2_LICENSE_CODE}"
-          echo "---> IFACE: ${FOP2_LICENSE_IFACE} ($(ip a show dev ${FOP2_LICENSE_IFACE} | grep 'link/ether' | awk '{print $2}'))"
-          set -x
-          ${appDataDirs[FOP2APPDIR]}/fop2_server --register --name "${FOP2_LICENSE_NAME}" --code "${FOP2_LICENSE_CODE}" $FOP2_LICENSE_OPTS
-          set +x
-          echo "--> INFO: FOP2 license code status:"
-          ${appDataDirs[FOP2APPDIR]}/fop2_server --getinfo $FOP2_LICENSE_OPTS
-      fi
+        if [ -z "${FOP2_LICENSE_CODE}" ]; then
+            echo "--> INFO: FOP2 is not licensed and no 'FOP2_LICENSE_CODE' variable defined... running in Demo Mode"
+          else
+            echo "--> INFO: Registering FOP2"
+            echo "---> NAME: ${FOP2_LICENSE_NAME}"
+            echo "---> CODE: ${FOP2_LICENSE_CODE}"
+            echo "---> IFACE: ${FOP2_LICENSE_IFACE} ($(ip a show dev ${FOP2_LICENSE_IFACE} | grep 'link/ether' | awk '{print $2}'))"
+            set -x
+            ${appDataDirs[FOP2APPDIR]}/fop2_server --register --name "${FOP2_LICENSE_NAME}" --code "${FOP2_LICENSE_CODE}" $FOP2_LICENSE_OPTS
+            set +x
+            echo "--> INFO: FOP2 license code info:"
+            ${appDataDirs[FOP2APPDIR]}/fop2_server --getinfo $FOP2_LICENSE_OPTS
+            echo "--> INFO: FOP2 license code status:"
+            ${appDataDirs[FOP2APPDIR]}/fop2_server --test $FOP2_LICENSE_OPTS
+        fi
       else
-        FOP2_LICENSE_STATUS="$(${appDataDirs[FOP2APPDIR]}/fop2_server --getinfo $FOP2_LICENSE_OPTS)"
-        if [ ! -z "$(echo $FOP2_LICENSE_STATUS | grep "Not Found")" ]; then
+        #FOP2_LICENSE_STATUS="$(${appDataDirs[FOP2APPDIR]}/fop2_server --getinfo $FOP2_LICENSE_OPTS)"
+        FOP2_LICENSE_STATUS="$(${appDataDirs[FOP2APPDIR]}/fop2_server --test $FOP2_LICENSE_OPTS)"
+        if [ ! -z "$(echo $FOP2_LICENSE_STATUS | grep "Demo")" ]; then
           echo "--> WARNING: Reactivating FOP2 license because:"
           echo $FOP2_LICENSE_STATUS
           set -x
           ${appDataDirs[FOP2APPDIR]}/fop2_server --reactivate $FOP2_LICENSE_OPTS
+          local RETVAL=$?
           set +x
+          if [ $RETVAL != 0 ]; then
+            echo "echo --> ERROR: Failed to reactivating the license... trying to revoke and register it again:"
+            set -x
+            ${appDataDirs[FOP2APPDIR]}/fop2_server --revoke   --name "${FOP2_LICENSE_NAME}" --code "${FOP2_LICENSE_CODE}" $FOP2_LICENSE_OPTS
+            ${appDataDirs[FOP2APPDIR]}/fop2_server --register --name "${FOP2_LICENSE_NAME}" --code "${FOP2_LICENSE_CODE}" $FOP2_LICENSE_OPTS
+            set +x
+          fi
+          unset RETVAL
         fi
-        echo "--> INFO: FOP2 license code status:"
+        echo "--> INFO: FOP2 license code info:"
         ${appDataDirs[FOP2APPDIR]}/fop2_server --getinfo $FOP2_LICENSE_OPTS
+        echo "--> INFO: FOP2 license code status:"
+        ${appDataDirs[FOP2APPDIR]}/fop2_server --test $FOP2_LICENSE_OPTS
     fi
   fi
 }
@@ -1420,8 +1479,11 @@ cfgService_fop2_install() {
 }
 
 cfgService_fop2_upgrade() {
+  #:${FOP2_VER:=$1}
+  #[ -z "${FOP2_VER}" ] && echo "--> ERROR: No FOP2 upgrade version defined... define FOP2_VER var or give it as argument... exiting" && return
+  
   # container workarounds
-  TERM=linux
+  export TERM=linux
   echo "-i ${FOP2_LICENSE_IFACE}" > /etc/sysconfig/fop2
   
   curl -fSL --connect-timeout 30 http://download2.fop2.com/fop2-$FOP2_VER-centos-x86_64.tgz | tar xz -C /usr/src

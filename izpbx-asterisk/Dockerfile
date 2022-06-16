@@ -12,16 +12,16 @@ ENV APP_VER=${APP_VER}
 
 ### components app versions
 ## https://downloads.asterisk.org/pub/telephony/asterisk/releases
-ARG ASTERISK_VER=18.9.0
+ARG ASTERISK_VER=18.12.0
 
 ## https://github.com/FreePBX/core/tags (only major version)
 ARG FREEPBX_VER=16
 
 ## https://www.fop2.com/download.php
-ARG FOP2_VER=2.31.30
+ARG FOP2_VER=2.31.32
 
 ## http://sources.buildroot.net/spandsp
-ARG SPANDSP_VER=20180108
+ARG SPANDSP_VER=3.0.0-6ec23e5a7e
 
 ## https://github.com/holme-r/iksemel
 ARG IKSEMEL_VER=1.5.1.3
@@ -39,7 +39,7 @@ ARG IZSYNTH_VER=5.0
 ARG ZABBIX_TEMPLATE_VER=main
 
 ## https://github.com/irontec/sngrep/releases
-ARG SNGREP_VER=1.4.10
+ARG SNGREP_VER=1.5.0
 
 ### define variables for later container usage
 ENV ASTERISK_VER=${ASTERISK_VER}
@@ -177,6 +177,7 @@ ENV APP_INSTALL_DEPS=' \
     libuv \
     patch \
     iproute \
+    bc \
   '
   
   # NOTE: postfix > 3.4.x is required for docker logging to stdout
@@ -191,7 +192,7 @@ RUN set -xe && \
   ## repo for phpMyAdmin
   rpm -Uvh https://rpms.remirepo.net/enterprise/remi-release-8.rpm && \
   ## repo for zabbix agent
-  rpm -Uvh https://repo.zabbix.com/zabbix/5.4/rhel/8/x86_64/zabbix-release-5.4-1.el8.noarch.rpm && \
+  rpm -Uvh https://repo.zabbix.com/zabbix/6.0/rhel/8/x86_64/zabbix-release-6.0-1.el8.noarch.rpm && \
   ## repo for ffmpeg command
   rpm -Uhv https://download1.rpmfusion.org/free/el/rpmfusion-free-release-8.noarch.rpm && \
   rpm -Uhv https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-8.noarch.rpm && \

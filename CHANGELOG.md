@@ -4,13 +4,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [18.16.8] - 2022-05-14
+### Changed
+- Updated PBX engine to Asterisk `18.12.0` LTS (https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-18.12.0)
+- Updated sngrep to `1.5.0`
+- Updated zabbix-agent to `6.0`
+
+## [18.16.7] - 2022-03-31
+### Changed
+- Updated PBX engine to Asterisk `18.11.1` LTS (https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-18.11.1)
+- updated `default.env` with the following variables: (NOTE: don't forget to update your custom `.env` file)
+  - changed default value for `APP_PORT_SIP` from `5160` to `5061`
+
+## [18.16.6] - 2022-03-12
+### Changed
+- Updated PBX engine to Asterisk `18.10.1` LTS (https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-18.10.1)
+- Updated SpanDSP to `3.0.0-6ec23e5a7e`
+- Updated database engine to MariaDB `10.6.7` LTS (https://mariadb.com/kb/en/mariadb-1067-release-notes/)
+  - after the deploy don't forget to upgrade mariadb database with: `source .env ; docker exec -it izpbx-db mysql_upgrade -u root -p$MYSQL_ROOT_PASSWORD`
+
+## [18.16.5] - 2022-02-12
+### Changed
+- Updated PBX engine to Asterisk `18.10.0` LTS (https://downloads.asterisk.org/pub/telephony/asterisk/releases/ChangeLog-18.10.0)
+
+## [18.16.4] - 2022-02-03
+### Fixes
+- Updated FOP2 to 2.31.32 (this release fix a long standing FOP2 license issue when running inside docker container that on every restart the license got invalid and needed to be reactivated)
+- FOP2: added new option `--rp=http` on fop2_server commands to bypass fop2 license problems when running inside a container
+- FOP2: better license handling
+
+## [18.16.3] - 2022-01-22
+### Changed
+- Updated FOP2 to 2.31.31
+- Portability enhancements: `MYSQL_ROOT_PASSWORD` is no longer mandatory.
+  If for security reasons it isn't defined in the `.env` file, the `MYSQL_PASSWORD` will be used instead
+  WARNING: you must manual pre provision the `asterisk` and `asteriskcdrdb` databases must exist and`MYSQL_USER` must have permissions to use them, otherwise the install step will fail.
+- by default do not update FOP2 on izPBX new release, you must enable `FOP2_AUTOUPGRADE=true` in `.env` to upgrade FOP2 (require valid license file)
+### Added
+- updated `default.env` with the following variables: (NOTE: don't forget to update your custom `.env` file)
+  - added: `FOP2_AUTOUPGRADE` (default: `false`)
+
 ## [18.16.2] - 2021-12-24
 ### Added
 - Added `iproute` package (used by SIP Settings when binding interface to SIP channel driver)
 
 ## [18.16.1] - 2021-12-15
 ### Changed
-- Updated engine to Asterisk 18.9.0 LTS (https://www.asterisk.org/asterisk-news/asterisk-18-9-0-now-available/)
+- Updated PBX engine to Asterisk 18.9.0 LTS (https://www.asterisk.org/asterisk-news/asterisk-18-9-0-now-available/)
 - Let's Encrypt: changed used address from `SMTP_MAIL_TO` to `SMTP_MAIL_FROM` when requesting a certificate
 
 ## [18.16.0] - 2021-12-04
@@ -49,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [18.15.23] - 2021-11-11
 ### Changed
 - Updated engine to Asterisk 18.8.0 LTS
-- Updated database to MariaDB 10.6.5
+- Updated database engine to MariaDB 10.6.5
   - after the deploy don't forget to upgrade mariadb database with: `source .env ; docker exec -it izpbx-db mysql_upgrade -u root -p$MYSQL_ROOT_PASSWORD`
   
 ## [18.15.22] - 2021-10-21

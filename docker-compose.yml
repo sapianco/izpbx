@@ -15,8 +15,8 @@ networks:
 services:
   # https://hub.docker.com/_/mariadb?tab=tags&page=1&ordering=last_updated
   db:
+    image: mariadb:10.6.7
     container_name: izpbx-db
-    image: mariadb:10.6.5
     ## WARNING: if you upgrade image tag enter the container and run mysql_upgrade:
     ## source .env ; docker exec -it izpbx-db mysql_upgrade -u root -p$MYSQL_ROOT_PASSWORD
     command: --sql-mode=ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -25,10 +25,12 @@ services:
     - .env
     environment:
     - TZ
-    - MYSQL_ROOT_PASSWORD
     - MYSQL_DATABASE
     - MYSQL_USER
     - MYSQL_PASSWORD
+    - MYSQL_ROOT_PASSWORD
+    #- MARIADB_RANDOM_ROOT_PASSWORD=${MYSQL_RANDOM_ROOT_PASSWORD}
+    #- MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=${MYSQL_ALLOW_EMPTY_ROOT_PASSWORD}
     volumes:
     #- /etc/localtime:/etc/localtime:ro
     - ./data/db:/var/lib/mysql
@@ -43,9 +45,9 @@ services:
 
   # https://hub.docker.com/r/izdock/izpbx-asterisk/tags?page=1&ordering=last_updated
   izpbx:
+    image: izdock/izpbx-asterisk:18.16.8
     container_name: izpbx
     #hostname: ${APP_FQDN}
-    image: izdock/izpbx-asterisk:18.16.2
     restart: unless-stopped
     depends_on:
     - db

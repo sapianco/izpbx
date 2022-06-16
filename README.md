@@ -27,13 +27,16 @@ Look into project [Tags](https://hub.docker.com/r/izdock/izpbx-asterisk/tags) pa
 # Dockerfile
 - https://github.com/ugoviti/izpbx/blob/main/izpbx-asterisk/Dockerfile
 
+# Targets of this project
+Cloud and On-Premise, Fast, Automatic and Repeatable deploy of VoIP PBX systems
+
 # Features
 - Fast initial bootstrap to deploy a full features PBX system (60 secs install time from zero to a running turnkey PBX system)
 - Built-in PBX Engine based on Asterisk® project (compiled from scratch)
 - Built-in WEB Management GUI based on FreePBX® project (with default predownloaded modules for quicker initial deploy)
 - No vendor lock-in, you can migrare to izPBX and away izPBX simply importing/exporting FreePBX Backups
 - Based on Rocky Linux 8 64bit OS (RHEL derivate with long term support)
-- Small container image footprint (~450 MB)
+- Small container image footprint (~450 MB vs 2300 MB of official FreePBX ISO distro file)
 - Multi-Tenant PBX System Support (look into **Advanced Production Configuration Examples** section)
 - Automatic Remote XML PhoneBook support for compatible VoIP Phones
 - Persistent storage mode for configuration and not volatile data
@@ -70,18 +73,6 @@ Look into project [Tags](https://hub.docker.com/r/izdock/izpbx-asterisk/tags) pa
 
 #### izPBX CLI (Asterisk):
 ![izpbx-console](https://raw.githubusercontent.com/ugoviti/izpbx/main/screenshots/izpbx-cli.png)
-
-# Targets of this project
-On-Premise, fast, automatic and repeatable deploy of PBX systems.  
-by default `network_mode: host` is used, so the PBX network is esposed directly in the host interface (no internal container network is used), so the default UDP RTP port range can be from `10000` to `20000`.  
-If you plan to disable `network_mode: host`, tune the port range (forwarding 10000 ports with the docker stack make high cpu usage and longer startup times), for example for 50 concurrent calls:  
-`APP_PORT_RTP_START=10000`  
-`APP_PORT_RTP_END=10200`  
-for best security, fine-tune the ports range based on your needs by not using standard port ranges!  
-
-# Limits of this project
-- Deploy 1 izPBX instance for every host. No multi deploy works out of the box by default when using `network_mode: host` (look **Advanced Production Configuration Examples** section for Multi-Tenant Solutions)
-- Container Antipattern Design (FreePBX was not designed to run as containerized app, and its ecosystem requires numerous modules to function, and the FreePBX modules updates will managed by FreePBX Admin Modules Pages itself not by izPBX container updates)
   
 # Deploy izPBX
 Using **docker-compose** is the suggested method:
@@ -102,7 +93,7 @@ sudo systemctl enable --now docker
   - `cd /opt/izpbx`
 
 - Checkout into latest official release:
-  - `git checkout refs/tags/$(git tag | sort --version-sort | tail -1)`
+  - `git checkout tags/$(git tag | sort --version-sort | tail -1)`
 
 - Copy default configuration file `default.env` into `.env`:
   - `cp default.env .env`
@@ -133,8 +124,10 @@ If you want test izPBX without using docker-compose, you can use the following d
 1. Upgrade the version of izpbx by downloading a new tgz release, or changing image tag into **docker-compose.yml** file (from git releases page, verify if upstream docker compose was updated), or if you cloned directly from GIT, use the following commands as quick method:
 ```
 cd /opt/izpbx
+git checkout main
 git pull
-git checkout refs/tags/$(git tag | sort --version-sort | tail -1)
+git fetch --tags --all -f
+git checkout tags/$(git tag | sort --version-sort | tail -1)
 ```
 
 2. Upgrade the **izpbx** deploy with:  
@@ -399,7 +392,7 @@ Enter the directory containig configuration files and run:
 ### Command to restart whole izPBX deploy
 `docker-compose restart izpbx`
 
-### Command to restart izPBX cntainer only
+### Command to restart izPBX container only
 `docker restart izpbx`
 
 ### Command to restart DB container only
@@ -511,7 +504,19 @@ NOTE: Tested on Yealink Phones
       - RemoteURL: **http://PBX_ADDRESS/pb/yealink/cm**
       - Display Name: **Shared Phone Book**
       
-# FAQ / Trobleshooting
+# FAQ / Troubleshooting
+- FOP2 useful commands:
+    NB. define interface name to associate the license, for example: `eth0`
+    - enter into izpbx container: `docker exec -it izpbx bash`
+    - register the license: `/usr/local/fop2/fop2_server --rp=http --register --iface eth0 --name "Company Name" --code "LICENSECODE"`
+    - get lincese detail: `/usr/local/fop2/fop2_server --rp=http --getinfo --iface eth0`
+    - reactivate the license: `/usr/local/fop2/fop2_server --rp=http --reactivate --iface eth0`
+    - revoke the license: `/usr/local/fop2/fop2_server --rp=http --revoke --iface eth0`
+
+- FOP2 is running in Demo mode because the license is invalid
+  - FOP2 soffer from a bug about the lincensing model (already comunicated many times to the FOP2 support without an official solution)
+    to workaround that problem, normally is required to **reactivate** the license, but some times doesn't works, so the only solution is to contact FOP2 support team
+
 - FreePBX is slow to reload (https://issues.freepbx.org/browse/FREEPBX-20559)
   - As temporary WORKAROUND enter into izpbx container shell and run:  
     `docker exec -it izpbx bash`  
@@ -522,20 +527,31 @@ NOTE: Tested on Yealink Phones
   - `rm -rf data`
   - `docker-compose up -d`
     
-# TODO / Future Development by priority
+# TODO / Future Development
 - Kubernetes deploy via Helm Chart (major problems for RTP UDP ports range... needs further investigation, no valid solutions right now)
 - Hylafax+ Server + IAXModem (used for sending FAXes. Receiving FAXes via mail is already possibile using FreePBX FAX Module)
 - macOS host support? (edit docker-compose.yml and comment localtime volume?)
 - Windows host support (need to use docker volume instead local directory path?)
 
-# BUGS
+# BUGS and Limits of this project
+- izPBX was developed with container antipattern design in mind.
+  - FreePBX was not designed to run as containerized app, and its ecosystem requires numerous modules to works
+  - FreePBX modules updates will managed by FreePBX Admin Modules Pages itself not by izPBX container updates
+- izPBX must be deployed by 1 instance for every VM or Baremetal host
+  - No multi deploy works out of the box by default when using `network_mode: host`
+  - Look **Advanced Production Configuration Examples** section for Multi-Tenant Solutions
+- By default `network_mode: host` is used, so the PBX network is esposed directly in the host interface (no internal container network is used), so the default UDP RTP port range can be set from `10000` to `20000`.
+  - If you plan to disable `network_mode: host`, tune the port range (forwarding 10000 ports with the docker stack make high cpu usage and longer startup times), for example for 50 concurrent calls:  
+`APP_PORT_RTP_START=10000`  
+`APP_PORT_RTP_END=10200`  
+for best security, fine-tune the ports range based on your needs by not using standard port ranges!  
 - Unpredictable network interface order when running in Multi-Tenant mode. As workaround, used network interface name must be named in lexical order. refs:
   - https://gist.github.com/jfellus/cfee9efc1e8e1baf9d15314f16a46eca
   - https://github.com/moby/moby/issues/20179
 - By default FreePBX use Signature Checking for modules packages, but this make very high delays when reloading FreePBX, so by default is been disabled. refs:
   - https://issues.freepbx.org/browse/FREEPBX-20559
 - No commercial FreePBX modules can be installed
-  - sysadmin rpm module is missing, looking for a solution
+  - sysadmin rpm module is missing. Looking for a solution
 - Missing good EndPoint Manager for automatic phone provisioning
   - Looking fo a valid solution
   
